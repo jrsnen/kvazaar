@@ -531,6 +531,8 @@ typedef struct kvz_picture {
     int8_t *roi_array;
   } roi;
 
+  double bitrate;
+
 } kvz_picture;
 
 /**

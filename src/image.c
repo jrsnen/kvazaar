@@ -104,6 +104,8 @@ kvz_picture * kvz_image_alloc(enum kvz_chroma_format chroma_format, const int32_
   im->roi.width = 0;
   im->roi.height = 0;
 
+  im->bitrate = -1.;
+
   return im;
 }
 
@@ -192,6 +194,8 @@ kvz_picture *kvz_image_make_subimage(kvz_picture *const orig_image,
   im->dts = 0;
 
   im->roi = orig_image->roi;
+
+  im->bitrate = orig_image->bitrate;
 
   return im;
 }

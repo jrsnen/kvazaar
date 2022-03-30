@@ -61,6 +61,7 @@ static int encoder_state_config_frame_init(encoder_state_t * const state) {
   state->frame->total_bits_coded = 0;
   state->frame->cur_frame_bits_coded = 0;
   state->frame->cur_gop_bits_coded = 0;
+  state->frame->new_target_bitrate = 0;
   state->frame->prepared = 0;
   state->frame->done = 1;
 

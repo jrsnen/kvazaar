@@ -41,8 +41,7 @@
 #include "strategyselector.h"
 #include "kvz_math.h"
 #include "fast_coeff_cost.h"
-
-static int encoder_control_init_gop_layer_weights(encoder_control_t * const);
+#include "rate_control.h"
 
 static unsigned cfg_num_threads(void)
 {
@@ -311,10 +310,12 @@ encoder_control_t* kvz_encoder_control_init(const kvz_config *const cfg)
   } else {
     encoder->target_avg_bppic = encoder->cfg.target_bitrate / encoder->cfg.framerate;
   }
+  kvz_get_rc_data(encoder)->target_bppic = encoder->target_avg_bppic;
   encoder->target_avg_bpp = encoder->target_avg_bppic / encoder->in.pixels_per_pic;
+  kvz_get_rc_data(NULL)->target_bpp = encoder->target_avg_bpp;
 
   if (encoder->cfg.target_bitrate > 0 &&
-      !encoder_control_init_gop_layer_weights(encoder))
+      !kvz_encoder_control_init_gop_layer_weights(encoder, kvz_get_rc_data(NULL)->gop_layer_weights, encoder->target_avg_bpp))
   {
     goto init_failed;
   }
@@ -697,7 +698,7 @@ void kvz_encoder_control_input_init(encoder_control_t * const encoder,
  * Only GOP structures with exactly four layers are supported with the.
  * exception of experimental GOP 16.
  */
-static int encoder_control_init_gop_layer_weights(encoder_control_t * const encoder)
+int kvz_encoder_control_init_gop_layer_weights(const encoder_control_t * const encoder, double* gop_layer_weights, double target_avg_bpp)
 {
 
   kvz_gop_config const * const gop = encoder->cfg.gop;
@@ -711,7 +712,7 @@ static int encoder_control_init_gop_layer_weights(encoder_control_t * const enco
   switch (num_layers) {
     case 0:
     case 1:
-      encoder->gop_layer_weights[0] = 1;
+      gop_layer_weights[0] = 1;
       break;
 
     // Use the first layers of the 4-layer weights.
@@ -722,49 +723,49 @@ static int encoder_control_init_gop_layer_weights(encoder_control_t * const enco
       if (encoder->cfg.gop_lowdelay) {
         // These weights are based on http://doi.org/10.1109/TIP.2014.2336550
         // They are meant for lp-g4d3r4t1 gop, but work ok for others.
-        if (encoder->target_avg_bpp <= 0.05) {
-          encoder->gop_layer_weights[0] = 14;
-          encoder->gop_layer_weights[1] = 3;
-          encoder->gop_layer_weights[2] = 2;
-          encoder->gop_layer_weights[3] = 1;
-        } else if (encoder->target_avg_bpp <= 0.1) {
-          encoder->gop_layer_weights[0] = 12;
-          encoder->gop_layer_weights[1] = 3;
-          encoder->gop_layer_weights[2] = 2;
-          encoder->gop_layer_weights[3] = 1;
-        } else if (encoder->target_avg_bpp <= 0.2) {
-          encoder->gop_layer_weights[0] = 10;
-          encoder->gop_layer_weights[1] = 3;
-          encoder->gop_layer_weights[2] = 2;
-          encoder->gop_layer_weights[3] = 1;
+        if (target_avg_bpp <= 0.05) {
+          gop_layer_weights[0] = 14;
+          gop_layer_weights[1] = 3;
+          gop_layer_weights[2] = 2;
+          gop_layer_weights[3] = 1;
+        } else if (target_avg_bpp <= 0.1) {
+          gop_layer_weights[0] = 12;
+          gop_layer_weights[1] = 3;
+          gop_layer_weights[2] = 2;
+          gop_layer_weights[3] = 1;
+        } else if (target_avg_bpp <= 0.2) {
+          gop_layer_weights[0] = 10;
+          gop_layer_weights[1] = 3;
+          gop_layer_weights[2] = 2;
+          gop_layer_weights[3] = 1;
         } else {
-          encoder->gop_layer_weights[0] = 6;
-          encoder->gop_layer_weights[1] = 3;
-          encoder->gop_layer_weights[2] = 2;
-          encoder->gop_layer_weights[3] = 1;
+          gop_layer_weights[0] = 6;
+          gop_layer_weights[1] = 3;
+          gop_layer_weights[2] = 2;
+          gop_layer_weights[3] = 1;
         }
       } else {
         // These weights are from http://doi.org/10.1109/TIP.2014.2336550
-        if (encoder->target_avg_bpp <= 0.05) {
-          encoder->gop_layer_weights[0] = 30;
-          encoder->gop_layer_weights[1] = 8;
-          encoder->gop_layer_weights[2] = 4;
-          encoder->gop_layer_weights[3] = 1;
-        } else if (encoder->target_avg_bpp <= 0.1) {
-          encoder->gop_layer_weights[0] = 25;
-          encoder->gop_layer_weights[1] = 7;
-          encoder->gop_layer_weights[2] = 4;
-          encoder->gop_layer_weights[3] = 1;
-        } else if (encoder->target_avg_bpp <= 0.2) {
-          encoder->gop_layer_weights[0] = 20;
-          encoder->gop_layer_weights[1] = 6;
-          encoder->gop_layer_weights[2] = 4;
-          encoder->gop_layer_weights[3] = 1;
+        if (target_avg_bpp <= 0.05) {
+          gop_layer_weights[0] = 30;
+          gop_layer_weights[1] = 8;
+          gop_layer_weights[2] = 4;
+          gop_layer_weights[3] = 1;
+        } else if (target_avg_bpp <= 0.1) {
+          gop_layer_weights[0] = 25;
+          gop_layer_weights[1] = 7;
+          gop_layer_weights[2] = 4;
+          gop_layer_weights[3] = 1;
+        } else if (target_avg_bpp <= 0.2) {
+          gop_layer_weights[0] = 20;
+          gop_layer_weights[1] = 6;
+          gop_layer_weights[2] = 4;
+          gop_layer_weights[3] = 1;
         } else {
-          encoder->gop_layer_weights[0] = 15;
-          encoder->gop_layer_weights[1] = 5;
-          encoder->gop_layer_weights[2] = 4;
-          encoder->gop_layer_weights[3] = 1;
+          gop_layer_weights[0] = 15;
+          gop_layer_weights[1] = 5;
+          gop_layer_weights[2] = 4;
+          gop_layer_weights[3] = 1;
         }
       }
       break;
@@ -772,11 +773,11 @@ static int encoder_control_init_gop_layer_weights(encoder_control_t * const enco
       if(!encoder->cfg.gop_lowdelay) {
         // These are obtained by running HM with RA GOP 16 collecting the ratio of bits spent for each
         // layer from the CTC sequences and then fitting power curve
-        encoder->gop_layer_weights[0] = 13.0060187535 * pow(encoder->target_avg_bpp, -0.3727651453);
-        encoder->gop_layer_weights[1] = 7.3654107392 * pow(encoder->target_avg_bpp, -0.0854329266);
-        encoder->gop_layer_weights[2] = 3.6563990701 * pow(encoder->target_avg_bpp, -0.0576990493);
-        encoder->gop_layer_weights[3] = 2.1486937288 * pow(encoder->target_avg_bpp, -0.0155389471);
-        encoder->gop_layer_weights[4] = 1;        
+        gop_layer_weights[0] = 13.0060187535 * pow(target_avg_bpp, -0.3727651453);
+        gop_layer_weights[1] = 7.3654107392 * pow(target_avg_bpp, -0.0854329266);
+        gop_layer_weights[2] = 3.6563990701 * pow(target_avg_bpp, -0.0576990493);
+        gop_layer_weights[3] = 2.1486937288 * pow(target_avg_bpp, -0.0155389471);
+        gop_layer_weights[4] = 1;        
       } 
       else {
         fprintf(stderr, "Unsupported amount of layers (%d) for lowdelay GOP\n", num_layers);
@@ -789,7 +790,7 @@ static int encoder_control_init_gop_layer_weights(encoder_control_t * const enco
                 "Rate control: Using experimental weights for GOP layers (%d)\n",
                 num_layers);
         for (int i = 0; i < MAX_GOP_LAYERS; ++i) {
-          encoder->gop_layer_weights[i] = (i == 0) ? 10 : 2;
+          gop_layer_weights[i] = (i == 0) ? 10 : 2;
         }
       } else {
         fprintf(stderr, "Unsupported number of GOP layers (%d)\n", num_layers);
@@ -800,10 +801,10 @@ static int encoder_control_init_gop_layer_weights(encoder_control_t * const enco
   // Normalize weights so that the sum of weights in a GOP is one.
   double sum_weights = 0;
   for (int i = 0; i < gop_len; ++i) {
-    sum_weights += encoder->gop_layer_weights[gop[i].layer - 1];
+    sum_weights += gop_layer_weights[gop[i].layer - 1];
   }
   for (int i = 0; i < num_layers; ++i) {
-    encoder->gop_layer_weights[i] /= sum_weights;
+    gop_layer_weights[i] /= sum_weights;
   }
 
   return 1;

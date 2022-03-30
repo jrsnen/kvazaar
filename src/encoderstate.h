@@ -149,6 +149,9 @@ typedef struct encoder_state_config_frame_t {
   double rc_alpha;
   double rc_beta;
 
+  double new_target_bitrate;
+  double target_avg_bppic;
+
   /**
    * \brief Indicates that this encoder state is ready for encoding the
    * next frame i.e. kvz_encoder_prepare has been called.

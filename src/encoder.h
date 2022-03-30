@@ -155,4 +155,5 @@ encoder_control_t* kvz_encoder_control_init(const kvz_config *cfg);
 void kvz_encoder_control_free(encoder_control_t *encoder);
 
 void kvz_encoder_control_input_init(encoder_control_t *encoder, int32_t width, int32_t height);
+int kvz_encoder_control_init_gop_layer_weights(const encoder_control_t* const encoder, double* gop_layer_weights, double target_avg_bpp);
 #endif

@@ -62,6 +62,11 @@ typedef struct kvz_rc_data {
   pthread_mutex_t ck_frame_lock;
   pthread_mutex_t lambda_lock;
   pthread_mutex_t intra_lock;
+
+  double gop_layer_weights[6];
+
+  double target_bpp;
+  double target_bppic;
 } kvz_rc_data;
 
 kvz_rc_data * kvz_get_rc_data(const encoder_control_t * const encoder);

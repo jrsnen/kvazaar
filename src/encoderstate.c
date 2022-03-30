@@ -1628,6 +1628,12 @@ static void encoder_state_init_new_frame(encoder_state_t * const state, kvz_pict
     normalize_lcu_weights(state);
   }
   state->frame->cur_frame_bits_coded = 0;
+  if(frame->bitrate > 0) {
+    state->frame->new_target_bitrate = frame->bitrate;
+  }
+  else {
+    state->frame->new_target_bitrate = state->previous_encoder_state->frame->new_target_bitrate;
+  }
 
   switch (state->encoder_control->cfg.rc_algorithm) {
     case KVZ_NO_RC:

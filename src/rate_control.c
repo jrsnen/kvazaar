@@ -190,12 +190,23 @@ static double gop_allocate_bits(encoder_state_t * const state)
   }
 
   smoothing_window = MAX(MIN_SMOOTHING_WINDOW, smoothing_window - encoder->cfg.gop_len / 2);
+
+  if (state->frame->new_target_bitrate > 0) {
+    double framerate = encoder->cfg.framerate_num / (double)encoder->cfg.framerate_denom;
+    state->frame->new_ratecontrol->target_bppic = state->frame->new_target_bitrate / framerate;
+    state->frame->new_ratecontrol->target_bpp = state->frame->new_ratecontrol->target_bppic / encoder->in.pixels_per_pic;
+    kvz_encoder_control_init_gop_layer_weights(encoder, state->frame->new_ratecontrol->gop_layer_weights, state->frame->new_ratecontrol->target_bpp);
+    state->frame->new_target_bitrate = -1;
+    bits_coded = 0;
+    smoothing_window = MIN_SMOOTHING_WINDOW;
+  }
+
   double gop_target_bits = -1;
 
   while( gop_target_bits < 0 && smoothing_window < 150) {
     // Equation 12 from https://doi.org/10.1109/TIP.2014.2336550
     gop_target_bits =
-      (encoder->target_avg_bppic * (pictures_coded + smoothing_window) - bits_coded)
+      (state->frame->new_ratecontrol->target_bppic * (pictures_coded + smoothing_window) - bits_coded)
       * MAX(1, encoder->cfg.gop_len) / smoothing_window;
     if(gop_target_bits < 0) {
       smoothing_window += 10;
@@ -382,7 +393,7 @@ static double pic_allocate_bits(encoder_state_t * const state)
     return state->frame->cur_gop_target_bits;
   }
 
-  const double pic_weight = encoder->gop_layer_weights[
+  const double pic_weight = state->frame->new_ratecontrol->gop_layer_weights[
     encoder->cfg.gop[state->frame->gop_offset].layer - 1];
   const double pic_target_bits =
     state->frame->cur_gop_target_bits * pic_weight - pic_header_bits(state);
