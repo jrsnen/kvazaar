@@ -102,6 +102,8 @@ kvz_rc_data * kvz_get_rc_data(const encoder_control_t * const encoder) {
   data->intra_pic_bpp = 0.0;
   data->intra_pic_distortion = 0.0;
 
+  data->last_reset = 0;
+
   data->intra_alpha = 6.7542000000000000;
   data->intra_beta = 1.7860000000000000;
   if(encoder->cfg.stats_file_prefix) {
@@ -172,23 +174,6 @@ static void update_parameters(uint32_t bits,
 static double gop_allocate_bits(encoder_state_t * const state)
 {
   const encoder_control_t * const encoder = state->encoder_control;
-
-  // At this point, total_bits_coded of the current state contains the
-  // number of bits written encoder->owf frames before the current frame.
-  uint64_t bits_coded = state->frame->total_bits_coded;
-  int pictures_coded = 0;
-  if(encoder->cfg.gop_len) {
-    pictures_coded = MAX(0, state->frame->num - CEILDIV(encoder->cfg.owf, encoder->cfg.gop_len)*encoder->cfg.gop_len);
-  }
-  else {
-    pictures_coded = MAX(0, state->frame->num - encoder->cfg.owf);
-  }
-    
-  if (encoder->cfg.gop_len > 0 && encoder->cfg.owf > 0) {
-    // Subtract number of bits in the partially coded GOP.
-    bits_coded -= state->frame->cur_gop_bits_coded;
-  }
-
   smoothing_window = MAX(MIN_SMOOTHING_WINDOW, smoothing_window - encoder->cfg.gop_len / 2);
 
   if (state->frame->new_target_bitrate > 0) {
@@ -197,9 +182,27 @@ static double gop_allocate_bits(encoder_state_t * const state)
     state->frame->new_ratecontrol->target_bpp = state->frame->new_ratecontrol->target_bppic / encoder->in.pixels_per_pic;
     kvz_encoder_control_init_gop_layer_weights(encoder, state->frame->new_ratecontrol->gop_layer_weights, state->frame->new_ratecontrol->target_bpp);
     state->frame->new_target_bitrate = -1;
-    bits_coded = 0;
     smoothing_window = MIN_SMOOTHING_WINDOW;
+    state->frame->new_ratecontrol->last_reset = state->frame->num;
+    state->frame->total_bits_coded = 0;
   }
+
+  // At this point, total_bits_coded of the current state contains the
+  // number of bits written encoder->owf frames before the current frame.
+  uint64_t bits_coded = state->frame->total_bits_coded;
+  int pictures_coded = 0;
+  if(encoder->cfg.gop_len) {
+    pictures_coded = MAX(0, state->frame->num - CEILDIV(encoder->cfg.owf, encoder->cfg.gop_len)*encoder->cfg.gop_len) - state->frame->new_ratecontrol->last_reset;
+  }
+  else {
+    pictures_coded = MAX(0, state->frame->num - encoder->cfg.owf) - state->frame->new_ratecontrol->last_reset;
+  }
+    
+  if (encoder->cfg.gop_len > 0 && encoder->cfg.owf > 0) {
+    // Subtract number of bits in the partially coded GOP.
+    bits_coded -= state->frame->cur_gop_bits_coded;
+  }
+
 
   double gop_target_bits = -1;
 
@@ -386,7 +389,7 @@ static double pic_allocate_bits(encoder_state_t * const state)
     else {
       alpha = 0.3;
     }
-    return MAX(100, alpha*pow(state->frame->icost * 4 / bits, beta)*bits);
+    return MIN(MAX(100, alpha*pow(state->frame->icost * 4 / bits, beta)*bits), state->frame->cur_gop_target_bits * 0.90);
   }
 
   if (encoder->cfg.gop_len <= 0) {

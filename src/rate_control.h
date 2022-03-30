@@ -67,6 +67,8 @@ typedef struct kvz_rc_data {
 
   double target_bpp;
   double target_bppic;
+
+  unsigned last_reset;
 } kvz_rc_data;
 
 kvz_rc_data * kvz_get_rc_data(const encoder_control_t * const encoder);
