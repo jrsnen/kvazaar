@@ -192,11 +192,12 @@ static double gop_allocate_bits(encoder_state_t * const state)
   uint64_t bits_coded = state->frame->total_bits_coded;
   int pictures_coded = 0;
   if(encoder->cfg.gop_len) {
-    int temp = (int)state->frame->num - CEILDIV(encoder->cfg.owf, encoder->cfg.gop_len) * encoder->cfg.gop_len - state->frame->new_ratecontrol->last_reset;
+    const int temp = (int)state->frame->num - CEILDIV(encoder->cfg.owf, encoder->cfg.gop_len) * encoder->cfg.gop_len - state->frame->new_ratecontrol->last_reset;
     pictures_coded = MAX(0, temp);
   }
   else {
-    pictures_coded = MAX(0, (int)state->frame->num - encoder->cfg.owf - state->frame->new_ratecontrol->last_reset);
+    const int temp = (int)state->frame->num - encoder->cfg.owf - state->frame->new_ratecontrol->last_reset;
+    pictures_coded = MAX(0, temp);
   }
     
   if (encoder->cfg.gop_len > 0 && encoder->cfg.owf > 0) {
@@ -218,7 +219,6 @@ static double gop_allocate_bits(encoder_state_t * const state)
       smoothing_window += 10;
     }
   }
-  printf("%f %d %llu %llu\n", gop_target_bits, pictures_coded, bits_coded, state->frame->total_bits_coded);
   // Allocate at least 200 bits for each GOP like HM does.
   return MAX(200, gop_target_bits);
 }
