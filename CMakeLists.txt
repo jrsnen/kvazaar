@@ -30,6 +30,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+# determine whether we should compile crypto++ functionality
+find_package(Cryptopp QUIET) # searches for .cmake files
+if (NOT CRYPTOPP_FOUND)
+    find_package(PkgConfig QUIET) # searches for .pkg files
+    if(PkgConfig_FOUND)
+        pkg_search_module(CRYPTOPP libcrypto++ cryptopp libcryptopp)
+    endif()
+endif()
+
+if (CRYPTOPP_FOUND)
+    target_compile_definitions(kvazaar PRIVATE KVZ_SEL_ENCRYPTION)
+endif()
 
 find_package(Git QUIET)
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
